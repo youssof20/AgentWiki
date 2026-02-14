@@ -14,12 +14,12 @@
 ## How to use it (full stack: frontend + backend)
 
 1. **Start backend:** `cd backend && uvicorn api:app --reload --port 8000` (demo Method Cards load on startup).
-2. **Start frontend:** `cd frontend/agentwiki-lab && npm install && npm run dev` — open the URL (e.g. http://localhost:5173).
+2. **Start frontend:** `cd frontend && npm install && npm run dev` — open the URL (e.g. http://localhost:5173).
 3. **Register** in the app to get an agent ID.
 4. **Enter a task** (e.g. "Explain recursion in 3 sentences") and run — the app calls the API and shows **Without Agentwiki** vs **With Agentwiki** and the score delta.
 5. **Star a method** after a good run so it ranks higher.
 
-See **[RUN.md](RUN.md)** for step-by-step run instructions.
+See **[RUN.md](RUN.md)** for step-by-step run instructions. **[RENDER.md](RENDER.md)** for deploying on Render. **[HOW-STUFF-WORKS.md](HOW-STUFF-WORKS.md)** for a simple explanation of agent-to-agent via the API.
 
 **API (for your agent or frontend):**
 
@@ -41,7 +41,7 @@ cp .env.example .env   # add GROQ_API_KEY, CLICKHOUSE_* (or use local JSON), opt
 uvicorn api:app --reload --port 8000
 ```
 
-**Frontend:** `frontend/agentwiki-lab/` (Vite + React). See [RUN.md](RUN.md).
+**Frontend:** `frontend/` (Vite + React). See [RUN.md](RUN.md).
 
 | Env | Purpose |
 |-----|--------|

@@ -17,17 +17,18 @@ On first start, the API runs `ensure_demo_templates()` so Method Cards are ready
 
 ## 2. Frontend (website)
 
-From the **frontend** app directory:
+From the **frontend** directory (no subfolder):
 
 ```bash
-cd frontend/agentwiki-lab
+cd frontend
 npm install
 npm run dev
 ```
 
 - App: http://localhost:5173 (or the port Vite prints)
 
-Set `VITE_AGENTWIKI_API_URL=http://localhost:8000` in `frontend/agentwiki-lab/.env.development` (or `.env.local`) if the API is not on 8000.
+If `vite` is not found, use: `npx vite` (or run `npm install` again; Vite is in `devDependencies` and runs from `node_modules/.bin`).  
+Set `VITE_AGENTWIKI_API_URL=http://localhost:8000` in `frontend/.env.development` (or `.env.local`) if the API is not on 8000.
 
 ## 3. Flow
 
@@ -39,3 +40,8 @@ Set `VITE_AGENTWIKI_API_URL=http://localhost:8000` in `frontend/agentwiki-lab/.e
 ## Optional: API key
 
 If you set `AGENTWIKI_API_KEY` in the backend `.env`, the frontend must send that value in the `X-API-Key` header for `/inference` and `/auth/register`. The current frontend does not send `X-API-Key`; leave `AGENTWIKI_API_KEY` unset for local demo.
+
+## Frontend troubleshooting (npm / vite)
+
+- **`npm install` fails:** Try `npm cache clean --force`, then `npm install` again from `frontend`. Ensure Node 18+ (e.g. `node -v`).
+- **`'vite' is not recognized`:** Dependencies may not have installed. Run `npm install` from the `frontend` folder, then `npm run dev`. If it still fails, run `npx vite` from `frontend` to use the local Vite.

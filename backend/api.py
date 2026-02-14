@@ -111,7 +111,6 @@ def health():
     return {"status": "ok"}
 
 
-<<<<<<< HEAD:backend/api.py
 @app.post("/auth/register", response_model=RegisterResponse)
 def register(
     req: RegisterRequest,
@@ -124,36 +123,17 @@ def register(
     except Exception as e:
         logger.warning("register: import failed: %s", e)
         raise HTTPException(status_code=500, detail="Service unavailable")
+    agent_name = (req.agent_name or "").strip()
+    if not agent_name:
+        raise HTTPException(status_code=400, detail="agent_name is required")
     agent_id = save_agent_registration(
-        agent_name=req.agent_name.strip(),
+        agent_name=agent_name,
         team_name=(req.team_name or "").strip(),
         email=(req.email or "").strip(),
     )
     if not agent_id:
         raise HTTPException(status_code=500, detail="Registration failed")
     return RegisterResponse(agent_id=agent_id)
-=======
-@app.post("/auth/register")
-def auth_register(req: RegisterRequest):
-    """
-    Register an agent. Returns agent_id for use in X-Agent-ID header (e.g. for GET /search).
-    Same as Streamlit app registration; stored in ClickHouse or local JSON.
-    """
-    try:
-        from agents import save_agent_registration
-    except Exception as e:
-        logger.warning("auth/register: import failed: %s", e)
-        raise HTTPException(status_code=500, detail="Service unavailable")
-    agent_name = (req.agent_name or "").strip()
-    team_name = (req.team_name or "").strip()
-    email = (req.email or "").strip()
-    if not agent_name:
-        raise HTTPException(status_code=400, detail="agent_name is required")
-    agent_id = save_agent_registration(agent_name, team_name, email)
-    if not agent_id:
-        raise HTTPException(status_code=500, detail="Registration failed")
-    return JSONResponse(content={"agent_id": agent_id})
->>>>>>> d3b6138029e2b3ec26d80831112f64b805b0b3cb:api.py
 
 
 @app.post("/inference", response_model=InferenceResponse)
