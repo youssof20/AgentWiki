@@ -11,9 +11,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from memory import get_recent_cards, search_cards
-from utils import getenv, get_logger
+from utils import get_langfuse, getenv, get_logger, LLM_TIMEOUT
 
 logger = get_logger(__name__)
+
+
+def _trace_generation(name: str, model: str, messages: list, output: str) -> None:
+    """Record one LLM call in Langfuse if configured."""
+    lf = get_langfuse()
+    if not lf:
+        return
+    try:
+        with lf.start_as_current_observation(as_type="generation", name=name, model=model) as gen:
+            gen.update(input=messages, output=output)
+    except Exception:
+        pass
 
 
 def llm_completion(system_prompt: str, user_input: str) -> str:
@@ -30,12 +42,13 @@ def llm_completion(system_prompt: str, user_input: str) -> str:
     if api_key:
         try:
             from groq import Groq
-            client = Groq(api_key=api_key)
+            client = Groq(api_key=api_key, timeout=LLM_TIMEOUT)
             r = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=messages,
             )
             out = (r.choices[0].message.content or "").strip()
+            _trace_generation("agent", "llama-3.3-70b-versatile", messages, out)
             logger.info("LLM: Groq OK, response length=%d", len(out))
             return out
         except Exception as e:
@@ -45,12 +58,13 @@ def llm_completion(system_prompt: str, user_input: str) -> str:
     if api_key:
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
+            client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1", timeout=LLM_TIMEOUT)
             r = client.chat.completions.create(
                 model="meta-llama/llama-3.3-70b-instruct",
                 messages=messages,
             )
             out = (r.choices[0].message.content or "").strip()
+            _trace_generation("agent", "meta-llama/llama-3.3-70b-instruct", messages, out)
             logger.info("LLM: OpenRouter OK, response length=%d", len(out))
             return out
         except Exception as e:
@@ -60,12 +74,13 @@ def llm_completion(system_prompt: str, user_input: str) -> str:
     if api_key:
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1")
+            client = OpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1", timeout=LLM_TIMEOUT)
             r = client.chat.completions.create(
                 model="mistral-small",
                 messages=messages,
             )
             out = (r.choices[0].message.content or "").strip()
+            _trace_generation("agent", "mistral-small", messages, out)
             logger.info("LLM: Mistral OK, response length=%d", len(out))
             return out
         except Exception as e:
@@ -79,6 +94,7 @@ def llm_completion(system_prompt: str, user_input: str) -> str:
             model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=messages[0]["content"])
             r = model.generate_content(messages[1]["content"])
             out = (r.text or "").strip()
+            _trace_generation("agent", "gemini-2.0-flash", messages, out)
             logger.info("LLM: Gemini OK, response length=%d", len(out))
             return out
         except Exception as e:
@@ -87,28 +103,37 @@ def llm_completion(system_prompt: str, user_input: str) -> str:
     return ""
 
 
-def build_system_prompt(use_agentwiki: bool, task_intent: str) -> str:
-    """Build system prompt; if use_agentwiki, include retrieved Method Cards (plan + avoid mistakes)."""
+def _get_cards_for_task(task_intent: str, top_n: int = 3) -> list[dict]:
+    """Retrieve best-rated playbooks for task (upvotes + score). Capped to avoid prompt overflow."""
+    cards = search_cards(task_intent, top_n=top_n)
+    if not cards:
+        cards = get_recent_cards(top_n=min(2, top_n))
+    return cards
+
+
+def build_system_prompt(use_agentwiki: bool, task_intent: str, cards_out: list | None = None) -> str:
+    """Build system prompt; if use_agentwiki, include best-rated playbooks. Sum up do's and don'ts (capped)."""
     base = "You are a precise assistant. Answer the user's task clearly and completely. Be concise."
     if not use_agentwiki:
         return base
-    # Retrieve top playbooks
-    cards = search_cards(task_intent, top_n=3)
+    cards = _get_cards_for_task(task_intent, top_n=3)
+    if cards_out is not None:
+        cards_out.clear()
+        cards_out.extend(cards)
     if not cards:
-        cards = get_recent_cards(top_n=2)
-    if not cards:
-        logger.debug("No playbooks found for task, using base prompt")
+        logger.info("build_system_prompt: no playbooks found, using base prompt")
         return base
-    logger.info("Using %d playbooks for Agentwiki prompt", len(cards))
-    parts = [base, "\n\n## Relevant playbooks from Agentwiki (use best methodology, avoid listed mistakes):"]
+    logger.info("build_system_prompt: using %d best-rated playbooks (upvotes+score)", len(cards))
+    parts = [base, "\n\n## Best-rated playbooks from Agentwiki (what to do / what not to do):"]
     for i, c in enumerate(cards, 1):
         intent = (c.get("task_intent") or "")[:200]
         plan = (c.get("plan") or "")[:300]
         mistakes = (c.get("mistakes") or "")[:200]
         fixes = (c.get("fixes") or "")[:200]
         score = c.get("outcome_score", 0)
-        parts.append(f"\n--- Playbook {i} (score {score}) ---\nTask: {intent}\nPlan: {plan}\nMistakes to avoid: {mistakes}\nFixes: {fixes}")
-    parts.append("\nCompose your plan using the best of the above; avoid the mistakes mentioned.")
+        up = c.get("upvotes", 0)
+        parts.append(f"\n--- Playbook {i} (score {score}, ↑{up}) ---\nTask: {intent}\nPlan: {plan}\nAvoid: {mistakes}\nDo: {fixes}")
+    parts.append("\nUse the best of the above; avoid the mistakes. Keep your plan within these guidelines.")
     return "\n".join(parts)
 
 
@@ -135,24 +160,22 @@ def run_static(task: str) -> dict[str, Any]:
 
 def run_agentwiki(task: str, top_n: int = 3) -> dict[str, Any]:
     """
-    Run agent with Agentwiki: retrieve top N Method Cards, build plan, execute, return result.
-    Does not evaluate or write back (app/evaluator does that).
-    Returns dict: output, plan, retry_count, time_seconds, score (None), cards_used.
+    Run agent with Agentwiki: find best-rated playbooks, sum do's/don'ts, execute. Returns card IDs used for upvote.
     """
-    logger.info("run_agentwiki: task_len=%d, top_n=%d", len(task or ""), top_n)
+    logger.info("run_agentwiki: start task_len=%d top_n=%d", len(task or ""), top_n)
     start = time.perf_counter()
-    system_prompt = build_system_prompt(use_agentwiki=True, task_intent=task)
+    cards_used: list[dict] = []
+    system_prompt = build_system_prompt(use_agentwiki=True, task_intent=task, cards_out=cards_used)
     output = llm_completion(system_prompt=system_prompt, user_input=task)
     elapsed = time.perf_counter() - start
-    cards = search_cards(task, top_n=top_n)
-    if not cards:
-        cards = get_recent_cards(top_n=top_n)
-    logger.info("run_agentwiki: done in %.2fs, cards_used=%d, output_len=%d", elapsed, len(cards), len(output or ""))
+    cards_used_ids = [c.get("id") for c in cards_used if c.get("id")]
+    logger.info("run_agentwiki: done in %.2fs cards_used=%d output_len=%d ids=%s", elapsed, len(cards_used), len(output or ""), cards_used_ids[:3] if cards_used_ids else [])
     return {
         "output": output or "(No response)",
-        "plan": "Plan composed from Agentwiki playbooks." if cards else "No playbooks found; direct response.",
+        "plan": "Plan from best-rated playbooks." if cards_used else "No playbooks; direct response.",
         "retry_count": 0,
         "time_seconds": round(elapsed, 2),
         "score": None,
-        "cards_used": len(cards),
+        "cards_used": len(cards_used),
+        "cards_used_ids": cards_used_ids,
     }

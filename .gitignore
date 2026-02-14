@@ -55,6 +55,7 @@ Thumbs.db
 # Local data (if you keep memory in repo by mistake)
 memory.json
 method_cards.json
+agent_registrations.json
 *.db
 *.sqlite
 
