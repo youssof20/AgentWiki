@@ -1,0 +1,57 @@
+---
+description: Core project rules for the Ruya AI Hackathon project. Always applied.
+alwaysApply: true
+---
+
+# PROJECT CONTEXT
+You are helping build **Agentwiki** (agent-to-agent library / StackOverflow + Wikipedia for agents) for the Ruya AI Hackathon 2026 in Dubai.
+**Idea:** Agents publish what worked, what failed, and the exact steps (Method Cards); the next agent searches, retrieves playbooks, plans better, avoids known mistakes — measurable improvement via community-level experience replay.
+**Stack:** Python + Streamlit + Groq (primary) / OpenRouter / Mistral / Gemini + ElevenLabs. **Database:** ClickHouse (preferred) for Method Cards and metrics; Supabase fallback. **Observability:** Langfuse for LLM tracing. **Storage/infra:** AWS (given — use for backup/storage as needed).
+**Code freeze 4pm.** Judges want a **shiny, interactive UI** and a clear self-improvement story. Use game-day-brief.md as the source of truth for scope and priorities — user can @game-day-brief.md for full context.
+
+**Rules are guidance, not law.** If the hackathon brief (game-day-brief.md) or the user explicitly says to do something different (e.g. different stack, different file structure, skip a rule), follow the user/brief. The goal is to ship a working, presentable demo that fits the actual challenge—not to satisfy every rule when the brief contradicts it.
+
+# ENV VARS (only what’s necessary for Agentwiki — never hardcode)
+- GROQ_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, GEMINI_API_KEY (LLMs)
+- ELEVENLABS_API_KEY (voice)
+- CLICKHOUSE_HOST, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD (DB — Method Cards, metrics)
+- SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_PUBLISHABLE_KEY (fallback DB)
+- LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST (LLM tracing)
+- AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, AWS_SESSION_TOKEN, AWS_BUCKET_NAME (storage — given)
+- GITHUB_USERNAME, REPO_NAME, REPO_URL (submission links)
+
+# GOLDEN RULES (never break these)
+- NEVER hardcode API keys. Always use os.getenv("KEY_NAME") with python-dotenv.
+- ALWAYS wrap every API call in a try/except block. The demo must never crash.
+- ALWAYS provide a graceful fallback if an API call fails (return a message, not an exception).
+- NEVER rewrite working code. When asked to add a feature, only touch what's necessary.
+- ALWAYS use st.session_state for any value that needs to persist between Streamlit reruns.
+- NEVER use st.experimental_rerun() — use st.rerun() instead (it's the current API).
+- NEVER use use_container_width=True — use width='stretch' instead (Streamlit 2025 API).
+- ALWAYS load .env at the top of every file that uses env vars: from dotenv import load_dotenv; load_dotenv()
+- After every change: append one line to logs.md (see logs rule). Do not edit previous log entries.
+
+# FILE STRUCTURE (keep this separation)
+- app.py           → ALL Streamlit UI only. No raw API calls. Support side-by-side demo (Run 1 vs Run 2) if possible.
+- agent.py         → LLM logic, prompt building, planning using retrieved Method Cards, API calls.
+- memory.py        → Method Card + generic memory. Prefer ClickHouse for store and search/retrieve top N cards; fallback Supabase or local JSON.
+- evaluator.py     → Score runs (rubric or LLM-as-judge). Used to grade outcome and write back improved cards.
+- utils.py         → Shared helpers.
+- .env             → API keys only. Never commit.
+- requirements.txt → Always keep updated.
+- logs.md          → Append-only change log.
+
+# BEFORE EVERY RESPONSE
+1. State which file(s) you are changing.
+2. Make the change.
+3. Append one log entry to logs.md (short summary).
+4. Give me ONE command to test it works.
+5. Tell me what to look for to confirm it worked.
+
+# CODE STYLE
+- Python 3.11 type hints on all function signatures.
+- One-line simple docstring comment above every function.
+- Guard clauses first — handle errors at the top, happy path last.
+- Keep functions under 30 lines. Split if longer.
+- Use f-strings for string formatting.
+- Prefer explicit over clever. Readable beats smart.

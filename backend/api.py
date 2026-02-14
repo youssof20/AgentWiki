@@ -5,6 +5,7 @@ Optional auth: set AGENTWIKI_API_KEY in env; then send header X-API-Key on /infe
 """
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -30,9 +31,22 @@ def _require_api_key(x_api_key: str | None = None) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key")
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Startup: ensure demo Method Cards exist. Shutdown: no-op."""
+    try:
+        from memory import ensure_demo_templates
+        n = ensure_demo_templates()
+        logger.info("ensure_demo_templates: %d methods", n)
+    except Exception as e:
+        logger.warning("ensure_demo_templates failed: %s", e)
+    yield
+
+
 app = FastAPI(
     title="Agentwiki API",
     description="Inference and search. Docs: /docs. Optional: set AGENTWIKI_API_KEY and send X-API-Key header.",
+    lifespan=_lifespan,
 )
 
 # CORS for Lovable and other frontends
@@ -61,6 +75,18 @@ class InferenceResponse(BaseModel):
     task: str | None
 
 
+class RegisterRequest(BaseModel):
+    """Request body for POST /auth/register."""
+    agent_name: str = Field(..., min_length=1)
+    team_name: str = ""
+    email: str = ""
+
+
+class RegisterResponse(BaseModel):
+    """Response from POST /auth/register."""
+    agent_id: str
+
+
 def _card_to_public(card: dict) -> dict:
     """Return a safe subset of a Method Card for API response."""
     return {
@@ -76,6 +102,28 @@ def _card_to_public(card: dict) -> dict:
 def health():
     """Liveness check."""
     return {"status": "ok"}
+
+
+@app.post("/auth/register", response_model=RegisterResponse)
+def register(
+    req: RegisterRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+):
+    """Register an agent. Returns agent_id for use in X-Agent-ID header."""
+    _require_api_key(x_api_key)
+    try:
+        from agents import save_agent_registration
+    except Exception as e:
+        logger.warning("register: import failed: %s", e)
+        raise HTTPException(status_code=500, detail="Service unavailable")
+    agent_id = save_agent_registration(
+        agent_name=req.agent_name.strip(),
+        team_name=(req.team_name or "").strip(),
+        email=(req.email or "").strip(),
+    )
+    if not agent_id:
+        raise HTTPException(status_code=500, detail="Registration failed")
+    return RegisterResponse(agent_id=agent_id)
 
 
 @app.post("/inference", response_model=InferenceResponse)

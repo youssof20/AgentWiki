@@ -1,0 +1,121 @@
+---
+description: Streamlit UI rules and patterns. Apply when editing app.py or any UI file.
+globs: app.py, *_ui.py, pages/*.py
+alwaysApply: false
+---
+
+# JUDGES WANT SHINY, INTERACTIVE UI
+Judging criteria explicitly include "shiny interactive UI." Avoid generic AI-slop; make the demo look intentional and polished. If building the Agentwiki demo, support a **side-by-side** view (Run 1: static agent vs Run 2: with library) with clear metrics (time, retries, quality score).
+
+# STREAMLIT VERSION RULES (2026 API — avoid deprecation warnings)
+- Use width='stretch' instead of use_container_width=True
+- Use width='content' instead of use_container_width=False
+- Use st.rerun() not st.experimental_rerun()
+- Use st.dialog() not st.experimental_dialog()
+- Use st.cache_data not st.cache (deprecated)
+
+# PAGE CONFIG (always at top of app.py, before anything else)
+```python
+st.set_page_config(
+    page_title="[App Name]",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+```
+
+# SESSION STATE (initialize at top of main(), before any UI)
+```python
+if 'output' not in st.session_state:
+    st.session_state.output = ""
+if 'interaction_count' not in st.session_state:
+    st.session_state.interaction_count = 0
+if 'ratings' not in st.session_state:
+    st.session_state.ratings = []
+if 'last_input' not in st.session_state:
+    st.session_state.last_input = ""
+```
+
+# LAYOUT PATTERN (use this column structure)
+```python
+col_main, col_sidebar = st.columns([2, 1])
+with col_main:
+    # Input + Output here
+with col_sidebar:
+    # Agent stats, memory, metrics here
+```
+
+# LOADING PATTERN (always use this for API calls)
+```python
+with st.spinner("🧠 Agent thinking..."):
+    result = call_agent(user_input)
+```
+
+# CARD CONTAINER PATTERN (makes UI look professional)
+```python
+def card(content_fn):
+    st.markdown('<div style="background:#1A1D24;border-radius:12px;padding:20px;margin:8px 0;border:1px solid #2D3139">', unsafe_allow_html=True)
+    content_fn()
+    st.markdown('</div>', unsafe_allow_html=True)
+```
+
+# RATING WIDGET PATTERN (5 stars using columns)
+```python
+st.write("Rate this response:")
+star_cols = st.columns(5)
+for i, col in enumerate(star_cols, 1):
+    if col.button("⭐" * i, key=f"star_{i}"):
+        handle_rating(i)
+```
+
+# DARK THEME CSS (inject once at top of app.py)
+```python
+st.markdown("""
+<style>
+    .main { background-color: #0E1117; }
+    .stTextArea textarea { background-color: #1A1D24; color: #FFFFFF; border: 1px solid #6C63FF; border-radius: 8px; }
+    .stButton button { background-color: #6C63FF; color: white; border-radius: 8px; border: none; font-weight: 600; transition: 0.2s; }
+    .stButton button:hover { background-color: #5A52E8; transform: translateY(-1px); }
+    .metric-card { background: #1A1D24; border-radius: 12px; padding: 16px; border: 1px solid #2D3139; }
+    h1 { background: linear-gradient(90deg, #6C63FF, #A78BFA); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stSidebar { background-color: #0D1017; }
+</style>
+""", unsafe_allow_html=True)
+```
+
+# IMPROVEMENT VISUALIZATION (judges want to SEE the improvement)
+Always include these 3 visual elements:
+1. st.metric() for "Agent Generation" and "Average Score"
+2. st.line_chart() for score over time
+3. A colored badge: green if improving, yellow if stable, red if declining
+
+# AVOID AI-SLOP / GENERIC AI UI
+AI tends to converge on the same look: purple gradients, Inter/Roboto, three-box grids, flat cards. Judges spot it. Steer away.
+
+**Never default to:**
+- Fonts: Inter, Roboto, Open Sans, Lato, Arial, system defaults
+- Color: purple gradients on white, or one safe pastel palette everywhere
+- Layout: symmetrical 3-column icon grids, perfectly centered everything, “card soup”
+- Vibe: mathematically perfect spacing with no personality, stock-demo feel
+
+**Do instead:**
+- **Typography:** One distinctive font (e.g. JetBrains Mono, Space Grotesk, Bricolage Grotesque, Crimson Pro). Load from Google Fonts. Use strong contrast (e.g. 200 vs 800 weight, or display + monospace).
+- **Color & theme:** Commit to one aesthetic. Use CSS variables. Dominant color + sharp accent; avoid timid, even distribution. Draw from IDE themes, cultural aesthetics, or a clear “theme” (e.g. terminal, editorial, RPG).
+- **Backgrounds:** Atmosphere and depth. Layer gradients, subtle patterns, or contextual effects—not solid flat fills.
+- **Motion:** At least one clear moment of motion (staggered reveal on load, hover state, or transition). CSS-only is fine; keep it purposeful.
+
+**4-step workflow when building UI:**
+1. **Layout first** — Sketch structure (ASCII or bullet list) before writing Streamlit columns/code; align on structure before styling.
+2. **Style systematically** — Lock one palette + font + radius/shadow in CSS (inject via st.markdown). Reuse the same variables for all cards/buttons.
+3. **Add animation** — Define one or two key moments (e.g. card appear, button hover). Use CSS keyframes/transitions in the same injected style block.
+4. **Scale one good component** — Nail one block (e.g. one card or metric box), then reuse that pattern everywhere so the UI feels consistent and intentional.
+
+**Streamlit-specific:** We inject CSS with st.markdown(unsafe_allow_html=True). Use a single coherent style block at the top; reference CSS variables for colors/fonts so changing the theme is one place. Prefer one strong visual identity over mixing styles.
+
+# WHAT NOT TO DO IN UI
+- Don't put API calls directly in app.py — call functions from agent.py
+- Don't use st.write() for important outputs — use st.markdown() with styling
+- Don't forget st.session_state — without it, values reset on every interaction
+- Don't show raw error tracebacks to the user — catch and show friendly messages
+- Don't use deprecated st.beta_* anything
+- Don't fall back to generic “AI” defaults (Inter, purple gradient, flat cards)—see “Avoid AI-slop” above

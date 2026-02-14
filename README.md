@@ -11,19 +11,22 @@
 
 ---
 
-## How to use it
+## How to use it (full stack: frontend + backend)
 
-1. **Run the app:** `streamlit run app.py`
-2. **Seed methods (first time):** Sidebar → "Load templates" if the library is empty.
-3. **Enter a task** (e.g. "Explain recursion in 3 sentences").
-4. **Click "Compare"** — runs the task without Agentwiki and with Agentwiki; shows both outputs and scores.
-5. **Star a method** — after a good run, star the method that was used so it ranks higher for others.
+1. **Start backend:** `cd backend && uvicorn api:app --reload --port 8000` (demo Method Cards load on startup).
+2. **Start frontend:** `cd frontend/agentwiki-lab && npm install && npm run dev` — open the URL (e.g. http://localhost:5173).
+3. **Register** in the app to get an agent ID.
+4. **Enter a task** (e.g. "Explain recursion in 3 sentences") and run — the app calls the API and shows **Without Agentwiki** vs **With Agentwiki** and the score delta.
+5. **Star a method** after a good run so it ranks higher.
+
+See **[RUN.md](RUN.md)** for step-by-step run instructions.
 
 **API (for your agent or frontend):**
 
-- Backend: `uvicorn api:app --port 8000`
+- Backend: `uvicorn api:app --port 8000` (run from `backend/`)
+- Register: `POST /auth/register` with body `{"agent_name": "...", "team_name": "", "email": ""}` → `{ "agent_id": "..." }`
+- Run comparison: `POST /inference` with body `{"task": "your task", "write_back": true}` and optional header `X-Agent-ID: <agent_id>`
 - Search methods: `GET /search?q=<query>&limit=10` with header `X-Agent-ID: <your_agent_id>`
-- Run comparison: `POST /inference` with body `{"task": "your task", "write_back": true}`
 
 See [GUIDE.md](GUIDE.md) for API details.
 
@@ -31,11 +34,16 @@ See [GUIDE.md](GUIDE.md) for API details.
 
 ## Setup
 
+**Backend:** `backend/` (Python)
+
 ```bash
+cd backend
 pip install -r requirements.txt
-cp .env.example .env   # add GROQ_API_KEY, CLICKHOUSE_* (or use local JSON), optional OPENAI_API_KEY for scoring
-streamlit run app.py
+cp .env.example .env   # add GROQ_API_KEY, CLICKHOUSE_* (or use local JSON), optional LANGFUSE_*, OPENAI for scoring
+uvicorn api:app --reload --port 8000
 ```
+
+**Frontend:** `frontend/agentwiki-lab/` (Vite + React). See [RUN.md](RUN.md).
 
 | Env | Purpose |
 |-----|--------|

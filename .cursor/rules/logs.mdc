@@ -1,0 +1,22 @@
+---
+description: Append-only change log — after every code change, add one line to logs.md
+alwaysApply: true
+---
+
+# LOGS.MDC — CHANGE LOG (ALWAYS APPLY)
+
+After every change you make to the project (new feature, fix, refactor, config):
+
+1. Open `logs.md`.
+2. Append one new line at the end. Do not edit or remove previous lines.
+3. Format: `## Log N — Short summary of the change` (N = next number).
+4. Keep the summary short and straightforward (e.g. "Add ElevenLabs voice button", "Fix crash when memory is empty").
+
+Example after 3 changes:
+```markdown
+## Log 1 — Add Streamlit app shell and session state
+## Log 2 — Wire agent.py to Gemini with try/except fallback
+## Log 3 — Add 5-star rating widget and save to memory
+```
+
+We do not play with or change previous logs — we only add on.
