@@ -31,9 +31,27 @@ interface ChatPanelProps {
   inferenceResult: InferenceResponse | null;
 }
 
+const RUN_STEPS: { afterSec: number; label: string }[] = [
+  { afterSec: 0, label: "Running static agent…" },
+  { afterSec: 5, label: "Searching playbooks…" },
+  { afterSec: 12, label: "Running AgentWiki…" },
+  { afterSec: 25, label: "Scoring both runs…" },
+  { afterSec: 35, label: "Finishing…" },
+];
+
+function getRunStatusLabel(elapsedSec: number): string {
+  let last = RUN_STEPS[0].label;
+  for (const step of RUN_STEPS) {
+    if (elapsedSec >= step.afterSec) last = step.label;
+  }
+  return last;
+}
+
 const ChatPanel = ({ onRunTask, isRunning, lastError, inferenceResult }: ChatPanelProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
+  const [runStatus, setRunStatus] = useState<string>(RUN_STEPS[0].label);
+  const [runStartTime, setRunStartTime] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const wasRunningRef = useRef(false);
 
@@ -50,12 +68,31 @@ const ChatPanel = ({ onRunTask, isRunning, lastError, inferenceResult }: ChatPan
     wasRunningRef.current = isRunning;
   }, [isRunning, inferenceResult, lastError]);
 
+  // Progress status: advance by elapsed time while running
+  useEffect(() => {
+    if (!isRunning) {
+      setRunStartTime(null);
+      return;
+    }
+    setRunStartTime((t) => t ?? Date.now());
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (!isRunning || runStartTime == null) return;
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - runStartTime) / 1000;
+      setRunStatus(getRunStatusLabel(elapsed));
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [isRunning, runStartTime]);
+
   const handleSend = () => {
     if (!input.trim() || isRunning) return;
     const task = input.trim();
     const userMsg: Message = { role: "user", content: task };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setRunStatus(RUN_STEPS[0].label);
     onRunTask(task);
     setMessages((prev) => [...prev, { role: "assistant", content: "Running inference… Comparing static vs AgentWiki-enhanced agent. Results will appear in the dashboard above." }]);
   };
@@ -70,10 +107,10 @@ const ChatPanel = ({ onRunTask, isRunning, lastError, inferenceResult }: ChatPan
           <h3 className="text-sm font-semibold text-foreground">Agent Console</h3>
           <p className="text-[11px] text-muted-foreground">Send tasks to AgentWiki</p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${isRunning ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
-          <span className={`text-[10px] uppercase tracking-widest font-medium ${isRunning ? "text-amber-400" : "text-emerald-400"}`}>
-            {isRunning ? "Running" : "Online"}
+        <div className="ml-auto flex items-center gap-2 min-w-0">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${isRunning ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+          <span className={`text-[10px] uppercase tracking-widest font-medium truncate ${isRunning ? "text-amber-400" : "text-emerald-400"}`} title={isRunning ? runStatus : undefined}>
+            {isRunning ? runStatus : "Online"}
           </span>
         </div>
       </div>

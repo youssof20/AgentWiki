@@ -6,3 +6,5 @@
 ## Log 6 — Fix CSS @import order (fonts first); render run output as markdown in RunComparison; add react-markdown and typography plugin
 ## Log 7 — Chart: slate grey for Static, primary orange for AgentWiki; demo data with clear AgentWiki lift; legend colors match bars
 ## Log 8 — Chart tooltip text white (labelStyle, itemStyle) so hover legend readable on dark background
+## Log 9 — Landing: headline "Agent Experience Layer", subtitle shared library / what worked–didn’t; add DEMO.md guide
+## Log 10 — Similar-questions doc (HOW-STUFF-WORKS); progress steps in ChatPanel + banner; Retries tooltip + doc

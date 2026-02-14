@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import DashboardHeader from "@/components/DashboardHeader";
 import MetricsBar from "@/components/MetricsBar";
@@ -9,16 +9,52 @@ import ChatPanel from "@/components/ChatPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { postInference, type InferenceResponse } from "@/lib/api";
 
+const RUN_STEPS: { afterSec: number; label: string }[] = [
+  { afterSec: 0, label: "Running static agent…" },
+  { afterSec: 5, label: "Searching playbooks…" },
+  { afterSec: 12, label: "Running AgentWiki…" },
+  { afterSec: 25, label: "Scoring both runs…" },
+  { afterSec: 35, label: "Finishing…" },
+];
+
+function getRunStatusLabel(elapsedSec: number): string {
+  let last = RUN_STEPS[0].label;
+  for (const step of RUN_STEPS) {
+    if (elapsedSec >= step.afterSec) last = step.label;
+  }
+  return last;
+}
+
 const Index = () => {
   const { agentId } = useAuth();
   const [inferenceResult, setInferenceResult] = useState<InferenceResponse | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [runStatus, setRunStatus] = useState<string>(RUN_STEPS[0].label);
+  const runStartRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isRunning) {
+      runStartRef.current = null;
+      return;
+    }
+    runStartRef.current = Date.now();
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (!isRunning || runStartRef.current == null) return;
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - runStartRef.current!) / 1000;
+      setRunStatus(getRunStatusLabel(elapsed));
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [isRunning]);
 
   const handleRunTask = useCallback(async (task: string) => {
     if (!task.trim()) return;
     setIsRunning(true);
     setLastError(null);
+    setRunStatus(RUN_STEPS[0].label);
     try {
       const result = await postInference(task.trim(), true, agentId ?? undefined);
       setInferenceResult(result);
@@ -54,7 +90,14 @@ const Index = () => {
           className="mb-6 rounded-xl bg-primary/10 border border-primary/20 px-5 py-3 text-sm text-muted-foreground"
           style={{ animation: "float-up 0.5s ease-out 0.2s forwards", opacity: 0 }}
         >
-          {bannerText}
+          {isRunning ? (
+            <span className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              {runStatus}
+            </span>
+          ) : (
+            bannerText
+          )}
         </div>
 
         <div className="space-y-6">

@@ -51,8 +51,8 @@ function runToStats(run: RunResult | null, title: string, badge: string, badgeTy
   };
 }
 
-const StatItem = ({ icon: Icon, label, value, highlight }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string | number; highlight?: boolean }) => (
-  <div className="space-y-1">
+const StatItem = ({ icon: Icon, label, value, highlight, title: tooltip }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string | number; highlight?: boolean; title?: string }) => (
+  <div className="space-y-1" title={tooltip}>
     <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
       <Icon className="w-3 h-3" />
       {label}
@@ -78,7 +78,7 @@ const RunCard = ({ run }: { run: RunStats }) => (
 
     <div className="grid grid-cols-2 gap-5">
       <StatItem icon={Clock} label="Time" value={run.time} />
-      <StatItem icon={RotateCcw} label="Retries" value={run.retries} />
+      <StatItem icon={RotateCcw} label="Retries" value={run.retries} title="Times the agent retried before succeeding (0 = none). Used in scoring: fewer retries = better." />
       {run.playbooks !== undefined && (
         <StatItem icon={BookOpen} label="Playbooks used" value={run.playbooks} highlight />
       )}
