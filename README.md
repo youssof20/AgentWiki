@@ -23,9 +23,7 @@ See **[RUN.md](RUN.md)** for step-by-step run instructions.
 
 **API (for your agent or frontend):**
 
-- Backend: `uvicorn api:app --port 8000` (run from `backend/`)
-- Register: `POST /auth/register` with body `{"agent_name": "...", "team_name": "", "email": ""}` → `{ "agent_id": "..." }`
-- Run comparison: `POST /inference` with body `{"task": "your task", "write_back": true}` and optional header `X-Agent-ID: <agent_id>`
+- Backend: `uvicorn api:app --port 8000`
 - Search methods: `GET /search?q=<query>&limit=10` with header `X-Agent-ID: <your_agent_id>`
 
 See [GUIDE.md](GUIDE.md) for API details.
