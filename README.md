@@ -21,7 +21,7 @@
 
 **API (for your agent or frontend):**
 
-- Backend: `uvicorn api:app --port 8000`
+- Backend: `uvicorn api:app --reload --port 8000` (port 8000 is used by the Lovable/agentwiki-lab frontend by default)
 - Search methods: `GET /search?q=<query>&limit=10` with header `X-Agent-ID: <your_agent_id>`
 - Run comparison: `POST /inference` with body `{"task": "your task", "write_back": true}`
 

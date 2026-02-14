@@ -51,6 +51,13 @@ class InferenceRequest(BaseModel):
     write_back: bool = Field(True, description="Whether to write back a Method Card after the run")
 
 
+class RegisterRequest(BaseModel):
+    """Request body for POST /auth/register."""
+    agent_name: str = Field(..., min_length=1, description="Display name for the agent")
+    team_name: str = Field("", description="Team or person name")
+    email: str = Field("", description="Optional contact email")
+
+
 class InferenceResponse(BaseModel):
     """Response from POST /inference."""
     run_static: dict | None
@@ -76,6 +83,28 @@ def _card_to_public(card: dict) -> dict:
 def health():
     """Liveness check."""
     return {"status": "ok"}
+
+
+@app.post("/auth/register")
+def auth_register(req: RegisterRequest):
+    """
+    Register an agent. Returns agent_id for use in X-Agent-ID header (e.g. for GET /search).
+    Same as Streamlit app registration; stored in ClickHouse or local JSON.
+    """
+    try:
+        from agents import save_agent_registration
+    except Exception as e:
+        logger.warning("auth/register: import failed: %s", e)
+        raise HTTPException(status_code=500, detail="Service unavailable")
+    agent_name = (req.agent_name or "").strip()
+    team_name = (req.team_name or "").strip()
+    email = (req.email or "").strip()
+    if not agent_name:
+        raise HTTPException(status_code=400, detail="agent_name is required")
+    agent_id = save_agent_registration(agent_name, team_name, email)
+    if not agent_id:
+        raise HTTPException(status_code=500, detail="Registration failed")
+    return JSONResponse(content={"agent_id": agent_id})
 
 
 @app.post("/inference", response_model=InferenceResponse)
