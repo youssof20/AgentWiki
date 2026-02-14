@@ -34,11 +34,12 @@ interface ChatPanelProps {
 const ChatPanel = ({ onRunTask, isRunning, lastError, inferenceResult }: ChatPanelProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const wasRunningRef = useRef(false);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
@@ -77,7 +78,7 @@ const ChatPanel = ({ onRunTask, isRunning, lastError, inferenceResult }: ChatPan
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
             {msg.role === "assistant" && (
@@ -111,7 +112,6 @@ const ChatPanel = ({ onRunTask, isRunning, lastError, inferenceResult }: ChatPan
             )}
           </div>
         ))}
-        <div ref={endRef} />
       </div>
 
       <div className="p-4 border-t border-border">
