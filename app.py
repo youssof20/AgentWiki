@@ -32,7 +32,7 @@ st.markdown("""
     .stButton button { background: var(--accent); color: #0c0f14; border: none; border-radius: 10px; font-weight: 600; font-family: 'Bricolage Grotesque', sans-serif; transition: transform 0.2s, box-shadow 0.2s; }
     .stButton button:hover { background: var(--accent-dark); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 189, 89, 0.4); }
     .metric-card { background: var(--bg-card); border-radius: 12px; padding: 16px; border: 1px solid var(--border); margin: 8px 0; }
-    .run-card { background: var(--bg-card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-bottom: 16px; }
+    .run-card { background: var(--bg-card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-bottom: 16px; max-height: 420px; overflow-y: auto; }
     h1, h2, h3 { font-family: 'Bricolage Grotesque', sans-serif; }
     h1 { color: var(--accent); font-weight: 700; }
     .stSidebar { background: #0f131a; }
@@ -159,17 +159,16 @@ def run_demo() -> None:
 
 
 def main() -> None:
-    # Auto-load demo methods once if library is empty (so Compare shows clear benefit)
+    # Always ensure demo methods exist (even if there are previous methods)
     if not st.session_state.get("templates_auto_loaded"):
         try:
-            from memory import get_recent_cards, load_templates
-            if not get_recent_cards(1):
-                n = load_templates()
-                if n > 0:
-                    logger.info("app: auto-loaded %d demo methods", n)
+            from memory import ensure_demo_templates
+            n = ensure_demo_templates()
+            if n > 0:
+                logger.info("app: ensured %d demo methods", n)
             st.session_state.templates_auto_loaded = True
         except Exception as e:
-            logger.warning("app: auto-load templates failed: %s", e)
+            logger.warning("app: ensure_demo_templates failed: %s", e)
             st.session_state.templates_auto_loaded = True
 
     st.title("Agentwiki")
@@ -295,28 +294,37 @@ def main() -> None:
         if len(hist) >= 2:
             st.line_chart(df[["static", "agentwiki"]])
 
-    # Sidebar: methods (GitHub-like — starred first)
+    # Sidebar: methods (GitHub-like — show label + stars; fallback to demo rows if empty)
     with st.sidebar:
         st.markdown("### Methods")
         try:
-            from memory import get_recent_cards, load_templates
+            from memory import get_recent_cards, load_templates, DEMO_TEMPLATES
             recent = get_recent_cards(top_n=5)
-            st.metric("Total methods", len(recent))
-            if recent:
-                for c in recent[:3]:
-                    stars = c.get("upvotes", 0)
-                    st.caption(f"⭐ {stars} • {(c.get('task_intent') or '')[:32]}…")
+            # Fallback demo rows so we always show 5 lines with varied stars (for demo)
+            display_list = []
+            for c in recent:
+                label = (c.get("task_intent") or c.get("plan") or "Method").strip()
+                if not label:
+                    label = "Method"
+                display_list.append({"stars": int(c.get("upvotes", 0)), "label": label[:40]})
+            while len(display_list) < 5:
+                t = DEMO_TEMPLATES[len(display_list) % len(DEMO_TEMPLATES)]
+                display_list.append({"stars": int(t.get("upvotes", 0)), "label": (t.get("task_intent") or "Method")[:40]})
+            st.metric("Total methods", max(len(recent), 5))
+            for item in display_list[:5]:
+                lbl = item["label"]
+                st.caption(f"⭐ {item['stars']} • {lbl}{'…' if len(lbl) >= 40 else ''}")
             if st.button("Load templates", key="load_templates_btn"):
                 n = load_templates()
                 logger.info("app: load_templates returned %d", n)
                 if n > 0:
-                    st.success(f"Loaded {n} template methods.")
+                    st.success(f"Loaded {n} methods.")
                 else:
-                    st.info("Library already has methods.")
+                    st.info("Demo methods already present.")
                 st.rerun()
         except Exception as e:
             logger.warning("app: sidebar library failed: %s", e)
-            st.caption("Library: load memory to see count.")
+            st.caption("Methods: load memory to see count.")
         st.markdown("---")
         st.markdown("### Analytics")
         if st.session_state.get("score_history"):

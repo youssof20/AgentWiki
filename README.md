@@ -44,6 +44,11 @@ streamlit run app.py
 | `CLICKHOUSE_HOST`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD` | Storage (optional; else local JSON) |
 | `RUN_DEMO_TIMEOUT` | Max run time seconds (default 120) |
 | `LLM_TIMEOUT` | Max LLM call seconds (default 45) |
+| `AGENTWIKI_API_KEY` | Optional: require X-API-Key header on API (Lovable backend) |
+
+**ClickHouse:** If you see "Unknown identifier upvotes", add the column once: `ALTER TABLE method_cards ADD COLUMN upvotes Int64 DEFAULT 0`. The app still works without it (reads fall back to ordering by score).
+
+**Langfuse:** Install in the same env as the app: `pip install langfuse`. Then set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL`.
 
 ---
 

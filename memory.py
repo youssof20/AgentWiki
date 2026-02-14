@@ -225,35 +225,53 @@ def upvote_card(card_id: str) -> bool:
     return False
 
 
-def search_cards(query: str, top_n: int = 5) -> list[dict[str, Any]]:
-    """Search Method Cards by task_intent/plan/tags; return top N by relevance (score + recency)."""
-    query_lower = (query or "").strip().lower()
-    if not query_lower:
-        return []
-
-    # ClickHouse: fetch, filter by query; order by upvotes (best-rated) then outcome_score
-    client = get_clickhouse_client()
-    if client:
+def _clickhouse_select_with_upvotes_fallback(client, order_by: str, limit: int) -> list[dict[str, Any]]:
+    """Query method_cards; if upvotes column missing (e.g. old table), retry without it and default upvotes=0."""
+    cols_with = "id, timestamp, task_intent, context, plan, tool_calls, mistakes, fixes, outcome_score, upvotes, tags"
+    cols_without = "id, timestamp, task_intent, context, plan, tool_calls, mistakes, fixes, outcome_score, tags"
+    order_without = "outcome_score DESC, timestamp DESC"
+    for cols, order in [(cols_with, order_by), (cols_without, order_without)]:
         try:
-            r = client.query(
-                "SELECT id, timestamp, task_intent, context, plan, tool_calls, mistakes, fixes, outcome_score, upvotes, tags "
-                "FROM method_cards ORDER BY upvotes DESC, outcome_score DESC, timestamp DESC LIMIT 50",
-            )
+            r = client.query(f"SELECT {cols} FROM method_cards ORDER BY {order} LIMIT {limit}")
             rows = r.result_rows
             col_names = [c[0] for c in r.column_names] if hasattr(r, "column_names") else []
             if not col_names and rows:
-                col_names = ["id", "timestamp", "task_intent", "context", "plan", "tool_calls", "mistakes", "fixes", "outcome_score", "upvotes", "tags"]
+                col_names = [x.strip() for x in cols.split(",")]
             out = []
             for row in rows:
                 d = dict(zip(col_names, row)) if col_names else {}
                 d.setdefault("upvotes", 0)
                 if isinstance(d.get("tags"), str):
                     d["tags"] = [t.strip() for t in d["tags"].split(",") if t.strip()]
+                out.append(d)
+            return out
+        except Exception as e:
+            if "upvotes" in str(e) or "47" in str(e) or "UNKNOWN_IDENTIFIER" in str(e):
+                logger.info("ClickHouse: retrying without upvotes column")
+                continue
+            raise
+    return []
+
+
+def search_cards(query: str, top_n: int = 5) -> list[dict[str, Any]]:
+    """Search Method Cards by task_intent/plan/tags; return top N by relevance (score + recency)."""
+    query_lower = (query or "").strip().lower()
+    if not query_lower:
+        return []
+
+    client = get_clickhouse_client()
+    if client:
+        try:
+            rows = _clickhouse_select_with_upvotes_fallback(
+                client, "upvotes DESC, outcome_score DESC, timestamp DESC", 50,
+            )
+            out = []
+            for d in rows:
                 text = " ".join([str(d.get("task_intent", "")), str(d.get("plan", "")), ",".join(d.get("tags") or [])]).lower()
                 if query_lower in text:
                     out.append(d)
             out = out[:top_n]
-            logger.info("search_cards ClickHouse: query=%r, found=%d (best-rated first)", query[:50], len(out))
+            logger.info("search_cards ClickHouse: query=%r, found=%d", query[:50], len(out))
             return out
         except Exception as e:
             logger.warning("search_cards ClickHouse failed: %s", e)
@@ -278,25 +296,14 @@ def search_cards(query: str, top_n: int = 5) -> list[dict[str, Any]]:
 
 
 def get_recent_cards(top_n: int = 5) -> list[dict[str, Any]]:
-    """Return top Method Cards by upvotes then recency (cold start). Best-rated first."""
+    """Return top Method Cards by upvotes then recency. Falls back to query without upvotes if column missing."""
     client = get_clickhouse_client()
     if client:
         try:
             n = max(1, int(top_n))
-            r = client.query(
-                f"SELECT id, timestamp, task_intent, context, plan, tool_calls, mistakes, fixes, outcome_score, upvotes, tags "
-                f"FROM method_cards ORDER BY upvotes DESC, timestamp DESC LIMIT {n}",
+            out = _clickhouse_select_with_upvotes_fallback(
+                client, "upvotes DESC, timestamp DESC", n,
             )
-            rows = r.result_rows
-            col_names = getattr(r, "column_names", None)
-            names = [c[0] for c in col_names] if col_names else ["id", "timestamp", "task_intent", "context", "plan", "tool_calls", "mistakes", "fixes", "outcome_score", "upvotes", "tags"]
-            out = []
-            for row in rows:
-                d = dict(zip(names, row))
-                d.setdefault("upvotes", 0)
-                if isinstance(d.get("tags"), str):
-                    d["tags"] = [t.strip() for t in d["tags"].split(",") if t.strip()]
-                out.append(d)
             logger.info("get_recent_cards ClickHouse: top_n=%d, found=%d", top_n, len(out))
             return out[:top_n]
         except Exception as e:
@@ -310,23 +317,8 @@ def get_recent_cards(top_n: int = 5) -> list[dict[str, Any]]:
     return out
 
 
-def load_templates() -> int:
-    """Seed demo methods so Compare shows a clear benefit. Returns number added. Skips if any cards exist."""
-    client = get_clickhouse_client()
-    if client:
-        try:
-            r = client.query("SELECT count() FROM method_cards")
-            if r.result_rows and int(r.result_rows[0][0]) > 0:
-                logger.info("load_templates: cards already exist, skipping")
-                return 0
-        except Exception:
-            pass
-    cards = _load_json_cards()
-    if cards:
-        logger.info("load_templates: JSON already has %d cards, skipping", len(cards))
-        return 0
-    # Demo-aligned: task_intent matches placeholder query; plan is prescriptive so Run 2 is clearly better
-    templates = [
+# Demo templates: always ensure these exist (for hackathon demo)
+DEMO_TEMPLATES = [
         {
             "task_intent": "Explain recursion in 3 sentences for a beginner",
             "plan": "Output exactly 3 sentences. Sentence 1: Define recursion (a function that calls itself). Sentence 2: One simple example (e.g. factorial or countdown). Sentence 3: One real-world analogy (e.g. Russian dolls or folders). Use plain language; no jargon like 'base case' or 'stack'.",
@@ -373,7 +365,34 @@ def load_templates() -> int:
             "tags": ["instructions", "steps", "howto"],
         },
     ]
-    for t in templates:
+
+
+def _get_existing_task_intents() -> set[str]:
+    """Return set of task_intent strings in the store (for ensure_demo_templates)."""
+    out = set()
+    client = get_clickhouse_client()
+    if client:
+        try:
+            r = client.query("SELECT task_intent FROM method_cards")
+            for row in (r.result_rows or []):
+                if row and row[0]:
+                    out.add(str(row[0]).strip())
+        except Exception:
+            pass
+    for c in _load_json_cards():
+        ti = (c.get("task_intent") or "").strip()
+        if ti:
+            out.add(ti)
+    return out
+
+
+def ensure_demo_templates() -> int:
+    """Ensure all 5 demo methods exist (add any missing). Call on app load. Returns number added."""
+    existing = _get_existing_task_intents()
+    added = 0
+    for t in DEMO_TEMPLATES:
+        if (t["task_intent"] or "").strip() in existing:
+            continue
         card = method_card(
             task_intent=t["task_intent"],
             plan=t["plan"],
@@ -383,6 +402,29 @@ def load_templates() -> int:
             upvotes=int(t.get("upvotes", 0)),
             tags=t.get("tags", []),
         )
-        save_card(card)
-    logger.info("load_templates: seeded %d demo methods (recursion/summary/code/explain/steps)", len(templates))
-    return len(templates)
+        if save_card(card):
+            added += 1
+            existing.add((t["task_intent"] or "").strip())
+    if added:
+        logger.info("ensure_demo_templates: added %d missing demo methods", added)
+    return added
+
+
+def load_templates() -> int:
+    """Seed or ensure demo methods. If store is empty, add all; else ensure_demo_templates (add missing only)."""
+    existing = _get_existing_task_intents()
+    if not existing:
+        for t in DEMO_TEMPLATES:
+            card = method_card(
+                task_intent=t["task_intent"],
+                plan=t["plan"],
+                mistakes=t["mistakes"],
+                fixes=t["fixes"],
+                outcome_score=t["outcome_score"],
+                upvotes=int(t.get("upvotes", 0)),
+                tags=t.get("tags", []),
+            )
+            save_card(card)
+        logger.info("load_templates: seeded %d demo methods", len(DEMO_TEMPLATES))
+        return len(DEMO_TEMPLATES)
+    return ensure_demo_templates()

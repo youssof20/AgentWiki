@@ -1,6 +1,7 @@
 """
 REST API for Agentwiki: inference (Lovable frontend) + search for registered agents.
-Run with: uvicorn api:app --reload --port 8000
+Run: uvicorn api:app --reload --port 8000. API docs: http://localhost:8000/docs
+Optional auth: set AGENTWIKI_API_KEY in env; then send header X-API-Key on /inference and /search.
 """
 from __future__ import annotations
 
@@ -13,14 +14,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from utils import setup_logging, get_logger
+from utils import setup_logging, get_logger, getenv
 
 setup_logging()
 logger = get_logger(__name__)
 
+API_KEY = getenv("AGENTWIKI_API_KEY")
+
+
+def _require_api_key(x_api_key: str | None = None) -> None:
+    """If API_KEY is set, require X-API-Key header to match. Raises 401 otherwise."""
+    if not API_KEY:
+        return
+    if not x_api_key or x_api_key.strip() != API_KEY.strip():
+        raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key")
+
+
 app = FastAPI(
     title="Agentwiki API",
-    description="Inference (run static vs Agentwiki) and search playbooks for registered agents. Connect your Lovable frontend to POST /inference.",
+    description="Inference and search. Docs: /docs. Optional: set AGENTWIKI_API_KEY and send X-API-Key header.",
 )
 
 # CORS for Lovable and other frontends
@@ -67,12 +79,12 @@ def health():
 
 
 @app.post("/inference", response_model=InferenceResponse)
-def inference(req: InferenceRequest):
-    """
-    Run the full demo: static agent (Run 1) + Agentwiki agent (Run 2), score both, optional write-back.
-    For Lovable frontend: POST JSON { "task": "your task here" }. Returns run_static, run_agentwiki, scores, delta.
-    Timeout: RUN_DEMO_TIMEOUT env (default 120s).
-    """
+def inference(
+    req: InferenceRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+):
+    """Run Compare: without vs with Agentwiki. POST {"task": "..."}. Returns run_static, run_agentwiki, scores, delta."""
+    _require_api_key(x_api_key)
     try:
         from pipeline import run_inference as run_pipeline
     except Exception as e:
@@ -99,11 +111,10 @@ def search(
     q: str = Query(..., min_length=1),
     limit: int = Query(10, ge=1, le=50),
     x_agent_id: str | None = Header(default=None, alias="X-Agent-ID"),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ):
-    """
-    Search playbooks by keyword. Registered agents should send their agent_id in header: X-Agent-ID.
-    Returns list of playbooks (task_intent, plan, outcome_score, tags).
-    """
+    """Search methods by keyword. Header X-Agent-ID required. Returns playbooks (task_intent, plan, outcome_score, tags)."""
+    _require_api_key(x_api_key)
     if not x_agent_id:
         raise HTTPException(status_code=401, detail="Missing X-Agent-ID header. Register your agent in the app to get an agent_id.")
     try:
