@@ -1,109 +1,130 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import DashboardHeader from "@/components/DashboardHeader";
-import MetricsBar from "@/components/MetricsBar";
+import { LogOut, Play, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import RunComparison from "@/components/RunComparison";
-import RunLog from "@/components/RunLog";
 import PlaybookSearch from "@/components/PlaybookSearch";
-import ImprovementChart from "@/components/ImprovementChart";
-import ChatPanel from "@/components/ChatPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { postInference, type InferenceResponse } from "@/lib/api";
-import { RUN_STEPS, getRunStatusLabel } from "@/lib/runStatus";
 
 const Index = () => {
-  const { agentId } = useAuth();
-  const [inferenceResult, setInferenceResult] = useState<InferenceResponse | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [lastError, setLastError] = useState<string | null>(null);
-  const [runStatus, setRunStatus] = useState<string>(RUN_STEPS[0].label);
-  const runStartRef = useRef<number | null>(null);
+  const navigate = useNavigate();
+  const { agentId, logout } = useAuth();
+  const [task, setTask] = useState("");
+  const [result, setResult] = useState<InferenceResponse | null>(null);
+  const [running, setRunning] = useState(false);
 
-  useEffect(() => {
-    if (!isRunning) {
-      runStartRef.current = null;
+  const handleRun = useCallback(async () => {
+    const t = task.trim();
+    if (!t) {
+      toast.error("Enter a task");
       return;
     }
-    runStartRef.current = Date.now();
-  }, [isRunning]);
-
-  useEffect(() => {
-    if (!isRunning || runStartRef.current == null) return;
-    const interval = setInterval(() => {
-      const elapsed = (Date.now() - runStartRef.current!) / 1000;
-      setRunStatus(getRunStatusLabel(elapsed));
-    }, 1500);
-    return () => clearInterval(interval);
-  }, [isRunning]);
-
-  const handleRunTask = useCallback(async (task: string) => {
-    if (!task.trim()) return;
-    setIsRunning(true);
-    setLastError(null);
-    setRunStatus(RUN_STEPS[0].label);
+    setRunning(true);
+    setResult(null);
     try {
-      const result = await postInference(task.trim(), true, agentId ?? undefined);
-      setInferenceResult(result);
-      if (result.error) {
-        setLastError(result.error);
-        toast.error(result.error);
-      }
+      const res = await postInference(t, true, agentId ?? undefined);
+      setResult(res);
+      if (res.error) toast.error(res.error);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Run failed";
-      setLastError(message);
-      toast.error(message);
-      setInferenceResult(null);
+      toast.error(err instanceof Error ? err.message : "Run failed");
+      setResult(null);
     } finally {
-      setIsRunning(false);
+      setRunning(false);
     }
-  }, [agentId]);
+  }, [task, agentId]);
 
-  const delta = inferenceResult?.delta;
-  const hasResult = delta != null && !inferenceResult?.error;
-  const bannerText = hasResult
-    ? delta >= 0
-      ? `↑ AgentWiki outperformed the static agent by +${delta} points this run.`
-      : `↓ Static agent scored higher by ${Math.abs(delta)} points this run.`
-    : "Run a task to see how AgentWiki improves results.";
+  const handleSignOut = () => {
+    logout();
+    navigate("/", { replace: true });
+  };
+
+  const hasResult = result && !result.error && (result.run_static != null || result.run_agentwiki != null);
 
   return (
-    <div className="min-h-screen gradient-mesh">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        <DashboardHeader />
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between">
+        <span className="text-lg font-semibold text-foreground">
+          Agent<span className="text-primary">Wiki</span>
+        </span>
+        <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground">
+          <LogOut className="w-4 h-4 mr-1" />
+          Sign out
+        </Button>
+      </header>
 
-        {/* Insight banner */}
-        <div
-          className="mb-6 rounded-xl bg-primary/10 border border-primary/20 px-5 py-3 text-sm text-muted-foreground"
-          style={{ animation: "float-up 0.5s ease-out 0.2s forwards", opacity: 0 }}
-        >
-          {isRunning ? (
-            <span className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              {runStatus}
-            </span>
-          ) : (
-            bannerText
-          )}
-        </div>
-
-        <div className="space-y-6">
-          <MetricsBar inferenceResult={inferenceResult} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ImprovementChart />
-            <ChatPanel
-              onRunTask={handleRunTask}
-              isRunning={isRunning}
-              lastError={lastError}
-              inferenceResult={inferenceResult}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+        {/* Run a task */}
+        <section>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+            Run a task
+          </h2>
+          <p className="text-foreground mb-4">
+            Same task runs without the library, then with it. You see both outputs and scores.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <textarea
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+              placeholder="e.g. Explain recursion in 3 sentences for a beginner"
+              rows={3}
+              className="flex-1 rounded-lg border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-[box-shadow,border-color] duration-200 resize-none"
+              disabled={running}
             />
+            <Button
+              onClick={handleRun}
+              disabled={running}
+              className="sm:self-end h-fit py-3 px-5"
+            >
+              {running ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Running…
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Run
+                </>
+              )}
+            </Button>
           </div>
+        </section>
 
-          <RunComparison inferenceResult={inferenceResult} agentId={agentId} />
-          <RunLog inferenceResult={inferenceResult} />
+        {/* Compare result */}
+        <section>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+            Compare
+          </h2>
+          {!hasResult && !running && (
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 py-12 text-center text-muted-foreground text-sm">
+              Run a task above to see Without AgentWiki vs With AgentWiki side by side.
+            </div>
+          )}
+          {hasResult && result && (
+            <>
+              {result.delta != null && (
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Delta: <span className={result.delta >= 0 ? "text-primary font-medium" : "text-foreground"}>{result.delta >= 0 ? "+" : ""}{result.delta}</span> points (with library vs without).
+                </p>
+              )}
+              <RunComparison inferenceResult={result} agentId={agentId} />
+            </>
+          )}
+        </section>
+
+        {/* Library */}
+        <section>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+            Library
+          </h2>
+          <p className="text-foreground mb-4">
+            Search the shared method cards. Star good ones after a run so they rank higher.
+          </p>
           <PlaybookSearch agentId={agentId} />
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 };

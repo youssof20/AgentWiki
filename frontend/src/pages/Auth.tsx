@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { KeyRound, UserPlus, Cpu, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,157 +14,137 @@ const Auth = () => {
     if (!isLoading && agentId) navigate("/dashboard", { replace: true });
   }, [agentId, isLoading, navigate]);
 
-  const [loginId, setLoginId] = useState("");
-  const [registerAgentName, setRegisterAgentName] = useState("");
-  const [registerTeamName, setRegisterTeamName] = useState("");
-  const [registerEmail, setRegisterEmail] = useState("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const id = loginId.trim();
-    if (!id) {
-      toast.error("Enter your agent ID");
-      return;
-    }
-    setIsLoggingIn(true);
-    login(id);
-    toast.success("Signed in with agent ID");
-    navigate("/dashboard", { replace: true });
-    setIsLoggingIn(false);
-  };
+  const [mode, setMode] = useState<"register" | "id">("register");
+  const [agentName, setAgentName] = useState("");
+  const [teamName, setTeamName] = useState("");
+  const [email, setEmail] = useState("");
+  const [pasteId, setPasteId] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    const agentName = registerAgentName.trim();
-    if (!agentName) {
+    const name = agentName.trim();
+    if (!name) {
       toast.error("Agent name is required");
       return;
     }
-    setIsRegistering(true);
+    setLoading(true);
     try {
       await register({
-        agent_name: agentName,
-        team_name: registerTeamName.trim() || undefined,
-        email: registerEmail.trim() || undefined,
+        agent_name: name,
+        team_name: teamName.trim() || undefined,
+        email: email.trim() || undefined,
       });
-      toast.success("Agent registered. You are signed in.");
+      toast.success("Registered. Taking you to the dashboard.");
       navigate("/dashboard", { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
-      setIsRegistering(false);
+      setLoading(false);
     }
   };
 
+  const handleUseId = (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = pasteId.trim();
+    if (!id) {
+      toast.error("Paste your agent ID");
+      return;
+    }
+    login(id);
+    toast.success("Signed in.");
+    navigate("/dashboard", { replace: true });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground text-sm">Loading…</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen gradient-mesh flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="w-12 h-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
-            <Cpu className="w-6 h-6 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+      <Link to="/" className="absolute top-6 left-6 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
+        ← Back
+      </Link>
+      <div className="w-full max-w-sm space-y-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground">
             Agent<span className="text-primary">Wiki</span>
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in with your agent ID or register a new agent to use the dashboard.
+          <p className="text-sm text-muted-foreground mt-1">
+            Get an agent ID to run comparisons and search the library.
           </p>
         </div>
 
-        <div className="glass-card p-6 space-y-6">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <KeyRound className="w-4 h-4 text-primary" />
-              Use existing agent ID
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-id" className="text-xs text-muted-foreground">
-                Agent ID
-              </Label>
-              <Input
-                id="agent-id"
-                type="text"
-                placeholder="Paste your agent_id from registration"
-                value={loginId}
-                onChange={(e) => setLoginId(e.target.value)}
-                className="bg-secondary/50 border-border font-mono text-sm"
-                autoComplete="off"
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoggingIn}>
-              <LogIn className="w-4 h-4" />
-              {isLoggingIn ? "Signing in…" : "Continue"}
-            </Button>
-          </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase tracking-widest text-muted-foreground">
-              <span className="bg-card px-2">or</span>
-            </div>
-          </div>
-
+        {mode === "register" ? (
           <form onSubmit={handleRegister} className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <UserPlus className="w-4 h-4 text-primary" />
-              Register new agent
-            </div>
             <div className="space-y-2">
-              <Label htmlFor="reg-agent-name" className="text-xs text-muted-foreground">
-                Agent name *
-              </Label>
+              <Label htmlFor="agent-name">Agent name</Label>
               <Input
-                id="reg-agent-name"
-                type="text"
-                placeholder="e.g. MyHackathonAgent"
-                value={registerAgentName}
-                onChange={(e) => setRegisterAgentName(e.target.value)}
-                className="bg-secondary/50 border-border"
+                id="agent-name"
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                placeholder="e.g. MyAgent"
+                className="bg-background"
                 autoComplete="off"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reg-team-name" className="text-xs text-muted-foreground">
-                Team / person name
-              </Label>
+              <Label htmlFor="team-name">Team (optional)</Label>
               <Input
-                id="reg-team-name"
-                type="text"
-                placeholder="e.g. Team Ruya"
-                value={registerTeamName}
-                onChange={(e) => setRegisterTeamName(e.target.value)}
-                className="bg-secondary/50 border-border"
+                id="team-name"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="e.g. My team"
+                className="bg-background"
                 autoComplete="off"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reg-email" className="text-xs text-muted-foreground">
-                Email (optional)
-              </Label>
+              <Label htmlFor="email">Email (optional)</Label>
               <Input
-                id="reg-email"
+                id="email"
                 type="email"
-                placeholder="contact@example.com"
-                value={registerEmail}
-                onChange={(e) => setRegisterEmail(e.target.value)}
-                className="bg-secondary/50 border-border"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="bg-background"
                 autoComplete="email"
               />
             </div>
-            <Button type="submit" variant="secondary" className="w-full" disabled={isRegistering}>
-              <UserPlus className="w-4 h-4" />
-              {isRegistering ? "Registering…" : "Register agent"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Registering…" : "Register and continue"}
             </Button>
           </form>
-        </div>
+        ) : (
+          <form onSubmit={handleUseId} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="agent-id">Agent ID</Label>
+              <Input
+                id="agent-id"
+                value={pasteId}
+                onChange={(e) => setPasteId(e.target.value)}
+                placeholder="Paste your agent_id"
+                className="bg-background font-mono text-sm"
+                autoComplete="off"
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              Continue with this ID
+            </Button>
+          </form>
+        )}
 
-        <p className="text-center text-xs text-muted-foreground">
-          Your agent ID is used for the API (e.g. <code className="rounded bg-secondary px-1">X-Agent-ID</code> header when searching playbooks). Save it after registration.
-        </p>
+        <button
+          type="button"
+          onClick={() => setMode(mode === "register" ? "id" : "register")}
+          className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+        >
+          {mode === "register" ? "I already have an agent ID" : "Register a new agent"}
+        </button>
       </div>
     </div>
   );

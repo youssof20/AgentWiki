@@ -1,55 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
+/* Design: warm dark base, amber accent, DM Sans, micro-interactions. No Inter, no purple gradients. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 95%;
+    /* Warm dark base (slight hue 30) so it doesn’t feel cold/generic */
+    --background: 30 6% 5%;
+    --foreground: 30 8% 95%;
 
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 95%;
+    --card: 30 6% 7%;
+    --card-foreground: 30 8% 95%;
 
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 30 6% 7%;
+    --popover-foreground: 30 8% 95%;
 
-    --primary: 38 100% 67%;
-    --primary-foreground: 0 0% 4%;
+    --primary: 38 92% 58%;
+    --primary-foreground: 30 10% 6%;
 
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 30 6% 12%;
+    --secondary-foreground: 30 8% 95%;
 
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 55%;
+    --muted: 30 6% 12%;
+    --muted-foreground: 30 6% 52%;
 
-    --accent: 38 100% 67%;
-    --accent-foreground: 0 0% 4%;
+    --accent: 38 92% 58%;
+    --accent-foreground: 30 10% 6%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 95%;
 
-    --border: 0 0% 14%;
-    --input: 0 0% 14%;
-    --ring: 38 100% 67%;
+    --border: 30 6% 14%;
+    --input: 30 6% 14%;
+    --ring: 38 92% 58%;
 
     --radius: 0.75rem;
 
-    --glass: 0 0% 8% / 0.6;
+    --glass: 30 6% 8% / 0.6;
     --glass-border: 0 0% 100% / 0.08;
-    --glow-primary: 38 100% 67%;
+    --glow-primary: 38 92% 58%;
     --glow-green: 142 70% 50%;
     --glow-blue: 217 91% 60%;
 
-    --sidebar-background: 0 0% 6%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 38 100% 67%;
-    --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 14%;
-    --sidebar-ring: 38 100% 67%;
+    --sidebar-background: 30 6% 6%;
+    --sidebar-foreground: 30 8% 95%;
+    --sidebar-primary: 38 92% 58%;
+    --sidebar-primary-foreground: 30 10% 6%;
+    --sidebar-accent: 30 6% 12%;
+    --sidebar-accent-foreground: 30 8% 95%;
+    --sidebar-border: 30 6% 14%;
+    --sidebar-ring: 38 92% 58%;
   }
 }
 
@@ -60,7 +60,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 }
 
@@ -77,20 +77,20 @@
     @apply glass-card transition-all duration-300;
   }
   .glass-card-hover:hover {
-    border-color: hsla(38 100% 67% / 0.2);
+    border-color: hsl(var(--primary) / 0.2);
     box-shadow:
-      0 0 0 1px hsla(38 100% 67% / 0.1),
-      0 8px 40px -8px hsla(38 100% 67% / 0.15),
-      0 0 60px -20px hsla(38 100% 67% / 0.1),
+      0 0 0 1px hsl(var(--primary) / 0.1),
+      0 8px 40px -8px hsl(var(--primary) / 0.15),
+      0 0 60px -20px hsl(var(--primary) / 0.1),
       inset 0 1px 0 hsla(0 0% 100% / 0.08);
   }
 
   .glow-text {
-    text-shadow: 0 0 20px hsla(38 100% 67% / 0.5), 0 0 40px hsla(38 100% 67% / 0.2);
+    text-shadow: 0 0 20px hsl(var(--primary) / 0.5), 0 0 40px hsl(var(--primary) / 0.2);
   }
 
   .glow-border {
-    box-shadow: 0 0 15px -3px hsla(38 100% 67% / 0.3), 0 0 30px -6px hsla(38 100% 67% / 0.15);
+    box-shadow: 0 0 15px -3px hsl(var(--primary) / 0.3), 0 0 30px -6px hsl(var(--primary) / 0.15);
   }
 
   .glow-green-text {
@@ -113,9 +113,9 @@
 
   .gradient-mesh {
     background:
-      radial-gradient(ellipse at 20% 0%, hsla(38 100% 67% / 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 100%, hsla(217 91% 60% / 0.05) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 50%, hsla(0 0% 4% / 1) 0%, hsla(0 0% 4% / 1) 100%);
+      radial-gradient(ellipse at 20% 0%, hsl(var(--primary) / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, hsl(var(--glow-blue) / 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, hsl(var(--background)) 0%, hsl(var(--background)) 100%);
   }
 
   .pulse-dot {
@@ -139,8 +139,24 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; box-shadow: 0 0 4px hsla(38 100% 67% / 0.3); }
-  50% { opacity: 1; box-shadow: 0 0 12px hsla(38 100% 67% / 0.6); }
+  0%, 100% { opacity: 0.4; box-shadow: 0 0 4px hsl(var(--primary) / 0.3); }
+  50% { opacity: 1; box-shadow: 0 0 12px hsl(var(--primary) / 0.6); }
+}
+
+/* Micro-interactions: primary CTAs get lift + shadow; inputs get smooth focus */
+.btn-action {
+  @apply transition-all duration-200 ease-out;
+}
+.btn-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.25);
+}
+.btn-action:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.input-focus-ring {
+  @apply transition-[box-shadow, border-color] duration-200 ease-out;
 }
 
 @keyframes float-up {

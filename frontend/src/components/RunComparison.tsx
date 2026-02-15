@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, RotateCcw, BookOpen, FileText, GitCompare, Star } from "lucide-react";
+import { Clock, RotateCcw, BookOpen, FileText, Star } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import type { InferenceResponse, RunResult } from "@/lib/api";
@@ -44,7 +44,7 @@ const StatItem = ({ icon: Icon, label, value, highlight, title: tooltip }: { ico
 );
 
 const RunCard = ({ run }: { run: RunStats }) => (
-  <div className="glass-card p-6 space-y-5 flex-1">
+  <div className="rounded-xl border border-border bg-card p-6 space-y-5 flex-1">
     <div className="space-y-3">
       <h3 className="text-lg font-semibold text-foreground">{run.title}</h3>
       <span className={`inline-block text-[11px] uppercase tracking-wider px-3 py-1 rounded-full font-medium ${
@@ -86,26 +86,17 @@ const RunComparison = ({ inferenceResult, agentId }: RunComparisonProps) => {
   const [starring, setStarring] = useState(false);
   const r1 = inferenceResult?.run_static ?? null;
   const r2 = inferenceResult?.run_agentwiki ?? null;
-  const run1 = runToStats(r1, "Run 1 — Static Agent", "no playbooks", "default");
+  const run1 = runToStats(r1, "Without AgentWiki", "no playbooks", "default");
   const run2 = runToStats(
     r2,
-    "Run 2 — AgentWiki",
+    "With AgentWiki",
     (r2?.cards_used ?? 0) > 0 ? "playbooks used" : "no playbooks",
     "accent"
   );
 
   const hasResult = run1 != null && run2 != null && !inferenceResult?.error;
   if (!hasResult) {
-    return (
-      <div
-        className="glass-card p-12 text-center text-muted-foreground"
-        style={{ animation: "float-up 0.5s ease-out 0.3s forwards", opacity: 0 }}
-      >
-        <GitCompare className="w-12 h-12 mx-auto mb-4 text-primary/50" />
-        <p className="text-sm font-medium">Run a task to see comparison</p>
-        <p className="text-xs mt-1">Without AgentWiki vs With AgentWiki — scores and output side by side.</p>
-      </div>
-    );
+    return null;
   }
 
   const cardsUsedIds = inferenceResult?.run_agentwiki?.cards_used_ids ?? [];
@@ -127,7 +118,7 @@ const RunComparison = ({ inferenceResult, agentId }: RunComparisonProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ animation: "float-up 0.5s ease-out 0.3s forwards", opacity: 0 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <RunCard run={run1!} />
         <RunCard run={run2!} />
       </div>
@@ -137,7 +128,7 @@ const RunComparison = ({ inferenceResult, agentId }: RunComparisonProps) => {
             type="button"
             onClick={handleStar}
             disabled={starring}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 font-medium text-sm disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 font-medium text-sm disabled:opacity-60 transition-colors duration-200"
           >
             <Star className="w-4 h-4" />
             {starring ? "Starring…" : "Star this method"}

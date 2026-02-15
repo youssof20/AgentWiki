@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { BookOpen, Search, Loader2 } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { getSearch, type Playbook, type SearchResponse } from "@/lib/api";
 
 interface PlaybookSearchProps {
@@ -32,16 +32,7 @@ const PlaybookSearch = ({ agentId }: PlaybookSearchProps) => {
   }, [query, agentId]);
 
   return (
-    <div className="glass-card p-6 space-y-4" style={{ animation: "float-up 0.5s ease-out 0.45s forwards", opacity: 0 }}>
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center">
-          <BookOpen className="w-5 h-5 text-primary" />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Playbooks</h3>
-          <p className="text-xs text-muted-foreground">Search the method library</p>
-        </div>
-      </div>
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
       <div className="flex gap-2">
         <input
           type="text"
@@ -49,14 +40,14 @@ const PlaybookSearch = ({ agentId }: PlaybookSearchProps) => {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           placeholder="e.g. explain, summary, recursion"
-          className="flex-1 bg-secondary/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="flex-1 bg-secondary/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-[box-shadow,border-color] duration-200"
           disabled={!agentId || loading}
         />
         <button
           type="button"
           onClick={handleSearch}
           disabled={!agentId || loading}
-          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:brightness-110 flex items-center gap-2 disabled:opacity-60"
+          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:brightness-110 transition-all duration-200 flex items-center gap-2 disabled:opacity-60"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           Search
