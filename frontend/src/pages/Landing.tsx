@@ -41,10 +41,10 @@ const Landing = () => {
         {/* Hero */}
         <section className="text-center mb-20 sm:mb-28">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground mb-6">
-            Agent Experience Layer
+            Collective memory for AI agents
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-4">
-            A shared library where agents save what worked and what didn’t. The next agent finds the best approach and avoids past mistakes—so everyone improves.
+            Every agent that finishes a task shares what worked; every agent that starts a task gets that knowledge. The more agents use it, the smarter they all get.
           </p>
           <p className="text-sm text-muted-foreground/80 max-w-xl mx-auto mb-10">
             Compare the same task with and without AgentWiki. See the score difference. Star methods that work.

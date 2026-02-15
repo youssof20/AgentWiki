@@ -4,26 +4,12 @@ import DashboardHeader from "@/components/DashboardHeader";
 import MetricsBar from "@/components/MetricsBar";
 import RunComparison from "@/components/RunComparison";
 import RunLog from "@/components/RunLog";
+import PlaybookSearch from "@/components/PlaybookSearch";
 import ImprovementChart from "@/components/ImprovementChart";
 import ChatPanel from "@/components/ChatPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { postInference, type InferenceResponse } from "@/lib/api";
-
-const RUN_STEPS: { afterSec: number; label: string }[] = [
-  { afterSec: 0, label: "Running static agent…" },
-  { afterSec: 5, label: "Searching playbooks…" },
-  { afterSec: 12, label: "Running AgentWiki…" },
-  { afterSec: 25, label: "Scoring both runs…" },
-  { afterSec: 35, label: "Finishing…" },
-];
-
-function getRunStatusLabel(elapsedSec: number): string {
-  let last = RUN_STEPS[0].label;
-  for (const step of RUN_STEPS) {
-    if (elapsedSec >= step.afterSec) last = step.label;
-  }
-  return last;
-}
+import { RUN_STEPS, getRunStatusLabel } from "@/lib/runStatus";
 
 const Index = () => {
   const { agentId } = useAuth();
@@ -78,7 +64,7 @@ const Index = () => {
     ? delta >= 0
       ? `↑ AgentWiki outperformed the static agent by +${delta} points this run.`
       : `↓ Static agent scored higher by ${Math.abs(delta)} points this run.`
-    : "↑ AgentWiki outperformed the static agent by +1.2 points this run. Playbook-enhanced reasoning improved coverage on security edge cases.";
+    : "Run a task to see how AgentWiki improves results.";
 
   return (
     <div className="min-h-screen gradient-mesh">
@@ -113,8 +99,9 @@ const Index = () => {
             />
           </div>
 
-          <RunComparison inferenceResult={inferenceResult} />
+          <RunComparison inferenceResult={inferenceResult} agentId={agentId} />
           <RunLog inferenceResult={inferenceResult} />
+          <PlaybookSearch agentId={agentId} />
         </div>
       </div>
     </div>

@@ -84,10 +84,6 @@ def _run_inference_impl(task: str, write_back: bool, timeout_seconds: int) -> di
         logger.info("_run_inference_impl: step score_run2")
         with _span_ctx(langfuse, "score_run2", {}, input_data={"task_preview": task[:200]}):
             s2 = score_outcome(task, r2["plan"], r2["output"], r2["retry_count"], used_playbooks=(r2.get("cards_used", 0) > 0))
-            # Demo: when Run 2 used methods, give a clear boost so "With Agentwiki" consistently scores higher
-            if r2.get("cards_used", 0) > 0:
-                s2 = min(10.0, round(s2 + 1.5, 1))
-                logger.info("_run_inference_impl: score_run2 boosted to %.1f (used methods)", s2)
             if langfuse:
                 _set_current_output(langfuse, {"score": s2})
         if langfuse:
@@ -130,9 +126,9 @@ def _run_inference_impl(task: str, write_back: bool, timeout_seconds: int) -> di
                     )
                 except Exception as e:
                     logger.warning("write_back_card failed: %s", e)
-        # Agent upvotes on success (Reddit/ELO-like): if Run 2 used playbooks and scored well, upvote the primary card
+        # Optional: auto-upvote primary card when Run 2 used playbooks and scored well (set AGENTWIKI_AUTO_UPVOTE=1 to enable)
         cards_used_ids = r2.get("cards_used_ids") or []
-        if cards_used_ids and s2 >= 6:
+        if cards_used_ids and s2 >= 6 and getenv("AGENTWIKI_AUTO_UPVOTE", "").strip().lower() in ("1", "true", "yes"):
             try:
                 from memory import upvote_card
                 upvote_card(cards_used_ids[0])

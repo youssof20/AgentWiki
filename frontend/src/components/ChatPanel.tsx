@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Sparkles, Loader2 } from "lucide-react";
 import type { InferenceResponse } from "@/lib/api";
+import { RUN_STEPS, getRunStatusLabel } from "@/lib/runStatus";
 
 interface Message {
   role: "user" | "assistant";
@@ -8,9 +9,7 @@ interface Message {
 }
 
 const initialMessages: Message[] = [
-  { role: "assistant", content: "Welcome to AgentWiki. I'm ready to run comparative agent evaluations. Describe a task and I'll execute it with both the static agent and AgentWiki-enhanced agent." },
-  { role: "user", content: "Analyze the authentication flow of our API and suggest security improvements." },
-  { role: "assistant", content: "Running evaluation...\n\n**Run 1 (Static):** Score 8.0/10 — covered core auth patterns but missed token refresh edge cases.\n\n**Run 2 (AgentWiki):** Score 9.2/10 — leveraged 3 playbooks for deeper coverage including OWASP guidelines.\n\n**Δ +1.2** improvement with AgentWiki." },
+  { role: "assistant", content: "Welcome to AgentWiki. Describe a task and I'll run it with and without the method library so you can compare the results and score delta." },
 ];
 
 function buildSummary(result: InferenceResponse | null, error: string | null): string {
@@ -29,22 +28,6 @@ interface ChatPanelProps {
   isRunning: boolean;
   lastError: string | null;
   inferenceResult: InferenceResponse | null;
-}
-
-const RUN_STEPS: { afterSec: number; label: string }[] = [
-  { afterSec: 0, label: "Running static agent…" },
-  { afterSec: 5, label: "Searching playbooks…" },
-  { afterSec: 12, label: "Running AgentWiki…" },
-  { afterSec: 25, label: "Scoring both runs…" },
-  { afterSec: 35, label: "Finishing…" },
-];
-
-function getRunStatusLabel(elapsedSec: number): string {
-  let last = RUN_STEPS[0].label;
-  for (const step of RUN_STEPS) {
-    if (elapsedSec >= step.afterSec) last = step.label;
-  }
-  return last;
 }
 
 const ChatPanel = ({ onRunTask, isRunning, lastError, inferenceResult }: ChatPanelProps) => {
@@ -94,7 +77,6 @@ const ChatPanel = ({ onRunTask, isRunning, lastError, inferenceResult }: ChatPan
     setInput("");
     setRunStatus(RUN_STEPS[0].label);
     onRunTask(task);
-    setMessages((prev) => [...prev, { role: "assistant", content: "Running inference… Comparing static vs AgentWiki-enhanced agent. Results will appear in the dashboard above." }]);
   };
 
   return (

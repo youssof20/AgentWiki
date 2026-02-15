@@ -1,6 +1,9 @@
-import { Clock, RotateCcw, BookOpen, FileText } from "lucide-react";
+import { useState } from "react";
+import { Clock, RotateCcw, BookOpen, FileText, GitCompare, Star } from "lucide-react";
+import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import type { InferenceResponse, RunResult } from "@/lib/api";
+import { postUpvote } from "@/lib/api";
 
 interface RunStats {
   title: string;
@@ -13,31 +16,8 @@ interface RunStats {
   playbooks?: number;
 }
 
-const placeholderRun1: RunStats = {
-  title: "Run 1 — Static Agent",
-  badge: "no playbooks",
-  badgeType: "default",
-  time: "1.76 s",
-  retries: 0,
-  score: "8.0/10",
-  output: "Generated a comprehensive analysis of the target system with standard prompting. Covered 4/5 key areas with reasonable depth. Missed edge cases in error handling section.",
-};
-
-const placeholderRun2: RunStats = {
-  title: "Run 2 — AgentWiki",
-  badge: "playbooks used",
-  badgeType: "accent",
-  time: "2.94 s",
-  retries: 0,
-  score: "9.2/10",
-  output: "Leveraged 3 relevant playbooks for enhanced coverage. Identified edge cases, provided structured remediation steps, and cross-referenced with known patterns. Superior depth on all 5 key areas.",
-  playbooks: 3,
-};
-
-function runToStats(run: RunResult | null, title: string, badge: string, badgeType: "default" | "accent"): RunStats {
-  if (!run) {
-    return badgeType === "accent" ? placeholderRun2 : placeholderRun1;
-  }
+function runToStats(run: RunResult | null, title: string, badge: string, badgeType: "default" | "accent"): RunStats | null {
+  if (!run) return null;
   const score = run.score != null ? run.score : 0;
   return {
     title,
@@ -99,9 +79,11 @@ const RunCard = ({ run }: { run: RunStats }) => (
 
 interface RunComparisonProps {
   inferenceResult: InferenceResponse | null;
+  agentId?: string | null;
 }
 
-const RunComparison = ({ inferenceResult }: RunComparisonProps) => {
+const RunComparison = ({ inferenceResult, agentId }: RunComparisonProps) => {
+  const [starring, setStarring] = useState(false);
   const r1 = inferenceResult?.run_static ?? null;
   const r2 = inferenceResult?.run_agentwiki ?? null;
   const run1 = runToStats(r1, "Run 1 — Static Agent", "no playbooks", "default");
@@ -112,10 +94,56 @@ const RunComparison = ({ inferenceResult }: RunComparisonProps) => {
     "accent"
   );
 
+  const hasResult = run1 != null && run2 != null && !inferenceResult?.error;
+  if (!hasResult) {
+    return (
+      <div
+        className="glass-card p-12 text-center text-muted-foreground"
+        style={{ animation: "float-up 0.5s ease-out 0.3s forwards", opacity: 0 }}
+      >
+        <GitCompare className="w-12 h-12 mx-auto mb-4 text-primary/50" />
+        <p className="text-sm font-medium">Run a task to see comparison</p>
+        <p className="text-xs mt-1">Without AgentWiki vs With AgentWiki — scores and output side by side.</p>
+      </div>
+    );
+  }
+
+  const cardsUsedIds = inferenceResult?.run_agentwiki?.cards_used_ids ?? [];
+  const primaryCardId = cardsUsedIds[0];
+  const canStar = primaryCardId && agentId && !starring;
+
+  const handleStar = async () => {
+    if (!primaryCardId || !agentId || starring) return;
+    setStarring(true);
+    try {
+      await postUpvote(primaryCardId, agentId);
+      toast.success("Starred. Best methods rise.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Star failed");
+    } finally {
+      setStarring(false);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ animation: "float-up 0.5s ease-out 0.3s forwards", opacity: 0 }}>
-      <RunCard run={run1} />
-      <RunCard run={run2} />
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ animation: "float-up 0.5s ease-out 0.3s forwards", opacity: 0 }}>
+        <RunCard run={run1!} />
+        <RunCard run={run2!} />
+      </div>
+      {canStar && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={handleStar}
+            disabled={starring}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 font-medium text-sm disabled:opacity-60"
+          >
+            <Star className="w-4 h-4" />
+            {starring ? "Starring…" : "Star this method"}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

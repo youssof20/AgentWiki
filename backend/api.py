@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Path, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -80,13 +80,6 @@ class InferenceResponse(BaseModel):
     delta: float
     error: str | None
     task: str | None
-
-
-class RegisterRequest(BaseModel):
-    """Request body for POST /auth/register."""
-    agent_name: str = Field(..., min_length=1)
-    team_name: str = ""
-    email: str = ""
 
 
 class RegisterResponse(BaseModel):
@@ -197,3 +190,34 @@ def search(
     except Exception as e:
         logger.exception("API search failed")
         raise HTTPException(status_code=500, detail="Search failed")
+
+
+@app.post("/cards/{card_id}/upvote")
+def upvote_card(
+    card_id: str = Path(..., description="Method Card ID to upvote (star)"),
+    x_agent_id: str | None = Header(default=None, alias="X-Agent-ID"),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+):
+    """Star (upvote) a Method Card. Header X-Agent-ID required."""
+    _require_api_key(x_api_key)
+    if not x_agent_id:
+        raise HTTPException(status_code=401, detail="Missing X-Agent-ID header. Register your agent in the app to get an agent_id.")
+    try:
+        from agents import get_registered_agents
+        from memory import upvote_card as memory_upvote_card
+    except Exception as e:
+        logger.warning("API upvote: import failed: %s", e)
+        raise HTTPException(status_code=500, detail="Service unavailable")
+    try:
+        registered = get_registered_agents(limit=1000)
+        ids = {r.get("id") for r in registered if r.get("id")}
+        if ids and x_agent_id not in ids:
+            raise HTTPException(status_code=403, detail="Invalid or unregistered agent_id.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("API: agent lookup failed: %s", e)
+    ok = memory_upvote_card(card_id.strip())
+    if not ok:
+        raise HTTPException(status_code=404, detail="Card not found or upvote failed")
+    return {"ok": True, "card_id": card_id}

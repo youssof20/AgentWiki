@@ -1,12 +1,8 @@
-# Ruya Hackathon — core stack (ClickHouse for storage, AWS S3 backup)
 python-dotenv>=1.0.0
-streamlit>=1.28.0
-google-generativeai>=0.3.0
 groq>=0.4.0
 openai>=1.0.0
-elevenlabs>=1.0.0
+google-generativeai>=0.3.0
 clickhouse-connect>=0.7.0
 langfuse>=2.0.0
-boto3>=1.28.0
 fastapi>=0.100.0
 uvicorn[standard]>=0.22.0

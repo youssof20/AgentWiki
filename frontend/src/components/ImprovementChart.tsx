@@ -24,7 +24,7 @@ const ImprovementChart = () => {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Score Comparison Over Runs</h3>
-          <p className="text-xs text-muted-foreground mt-1">Static agent vs AgentWiki-enhanced</p>
+          <p className="text-xs text-muted-foreground mt-1">Example — Static vs AgentWiki (run tasks to see real deltas above)</p>
         </div>
         <div className="text-right">
           <span className="text-xs uppercase tracking-widest text-muted-foreground">Avg Δ</span>

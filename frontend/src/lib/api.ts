@@ -111,3 +111,62 @@ export async function postInference(
   }
   return data;
 }
+
+/** Playbook returned by GET /search. */
+export interface Playbook {
+  id?: string;
+  task_intent?: string;
+  plan?: string;
+  outcome_score?: number;
+  tags?: string[];
+}
+
+export interface SearchResponse {
+  query: string;
+  playbooks: Playbook[];
+}
+
+export async function getSearch(
+  q: string,
+  limit = 10,
+  agentId?: string | null
+): Promise<SearchResponse> {
+  const base = getApiBaseUrl();
+  const params = new URLSearchParams({ q: q.trim(), limit: String(limit) });
+  const res = await fetch(`${base}/search?${params}`, {
+    method: "GET",
+    headers: buildHeaders(agentId),
+  });
+  const data = (await res.json()) as SearchResponse & { detail?: string };
+  if (!res.ok) {
+    const msg =
+      typeof data?.detail === "string"
+        ? data.detail
+        : Array.isArray(data?.detail)
+          ? (data?.detail as unknown[]).map((x) => String(x)).join(" ")
+          : `Search failed: ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+export async function postUpvote(
+  cardId: string,
+  agentId?: string | null
+): Promise<{ ok: boolean; card_id: string }> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/cards/${encodeURIComponent(cardId)}/upvote`, {
+    method: "POST",
+    headers: buildHeaders(agentId),
+  });
+  const data = (await res.json()) as { ok?: boolean; card_id?: string; detail?: string };
+  if (!res.ok) {
+    const msg =
+      typeof data?.detail === "string"
+        ? data.detail
+        : `Upvote failed: ${res.status}`;
+    throw new Error(msg);
+  }
+  if (!data?.ok) throw new Error("Upvote failed");
+  return { ok: data.ok, card_id: data.card_id ?? cardId };
+}

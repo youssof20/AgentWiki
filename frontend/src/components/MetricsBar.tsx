@@ -1,24 +1,16 @@
 import { Brain, Zap, TrendingUp } from "lucide-react";
 import type { InferenceResponse } from "@/lib/api";
 
-const placeholderMetrics = [
-  { label: "Run 1 (Static) Score", value: "8.0", suffix: "/10", icon: Brain, highlight: false as const, positive: false as const },
-  { label: "Run 2 (AgentWiki) Score", value: "9.2", suffix: "/10", icon: Zap, highlight: true, positive: false },
-  { label: "Improvement (Δ)", value: "+1.2", suffix: "", icon: TrendingUp, highlight: false, positive: true },
-];
-
-function getMetrics(inferenceResult: InferenceResponse | null) {
-  if (!inferenceResult?.scores && inferenceResult?.error) {
-    return placeholderMetrics;
-  }
-  const s1 = inferenceResult?.scores?.static ?? 8;
-  const s2 = inferenceResult?.scores?.agentwiki ?? 9.2;
-  const delta = inferenceResult?.delta ?? 1.2;
-  const deltaStr = delta >= 0 ? `+${delta}` : `${delta}`;
+function getMetrics(inferenceResult: InferenceResponse | null): { label: string; value: string; suffix: string; icon: typeof Brain; highlight: boolean; positive: boolean }[] {
+  const hasResult = inferenceResult?.scores != null && !inferenceResult?.error;
+  const s1 = inferenceResult?.scores?.static;
+  const s2 = inferenceResult?.scores?.agentwiki;
+  const delta = inferenceResult?.delta;
+  const deltaStr = delta != null ? (delta >= 0 ? `+${delta}` : `${delta}`) : "—";
   return [
-    { label: "Run 1 (Static) Score", value: String(s1), suffix: "/10", icon: Brain, highlight: false as const, positive: false as const },
-    { label: "Run 2 (AgentWiki) Score", value: String(s2), suffix: "/10", icon: Zap, highlight: true, positive: false },
-    { label: "Improvement (Δ)", value: deltaStr, suffix: "", icon: TrendingUp, highlight: false, positive: true },
+    { label: "Run 1 (Static) Score", value: hasResult && s1 != null ? String(s1) : "—", suffix: "/10", icon: Brain, highlight: false, positive: false },
+    { label: "Run 2 (AgentWiki) Score", value: hasResult && s2 != null ? String(s2) : "—", suffix: "/10", icon: Zap, highlight: true, positive: false },
+    { label: "Improvement (Δ)", value: hasResult && delta != null ? deltaStr : "—", suffix: "", icon: TrendingUp, highlight: false, positive: true },
   ];
 }
 
